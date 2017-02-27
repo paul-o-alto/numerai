@@ -7,11 +7,22 @@ To get started, install the required packages: pip install pandas, numpy, sklear
 
 import pandas as pd
 import numpy as np
-from sklearn import metrics, preprocessing, linear_model, neural_network
+from sklearn import (
+    metrics, 
+    preprocessing, 
+    linear_model, 
+    neural_network, 
+    tree, 
+    ensemble,
+    svm
+)
+#from sklearn.model_selection import train_test_split
+from sklearn.cross_validation import train_test_split
 
 #from sklearn.model_selection import cross_val_score
 #from sklearn.model_selection import KFold
 from keras.callbacks import ModelCheckpoint
+from keras.layers.core import Lambda
 from keras.models import (
     Model,
     Sequential
@@ -27,34 +38,49 @@ from keras.layers import (
     ELU,
 )
 
-
+NORMALIZE = not True
+INPUT_SHAPE = (50,)
 
 # define base mode
 def baseline_model():
-    non_linear = None
-    dropout = not True
+    non_linear = 'relu'
+    dropout = True
+    drop_prob = 0.1
+    fc = False
 
     # create model
     model = Sequential()
+    if NORMALIZE:
+        model.add(Lambda(lambda x: x/0.5 - 1,
+                  input_shape=INPUT_SHAPE))
     model.add(Dense(50, input_dim=50, init='normal'))
+
     if non_linear: model.add(Activation(non_linear))
-    if dropout: model.add(Dropout(0.1))
-    model.add(Dense(500, init='normal'))
-    if non_linear: model.add(Activation(non_linear))
-    if dropout: model.add(Dropout(0.1))
-    model.add(Dense(500, init='normal'))
-    if non_linear: model.add(Activation(non_linear))
-    if dropout: model.add(Dropout(0.1))
-    model.add(Dense(500, init='normal'))
-    if non_linear: model.add(Activation(non_linear))
-    if dropout: model.add(Dropout(0.1))
-    model.add(Dense(500, init='normal'))
-    if non_linear: model.add(Activation(non_linear))
-    if dropout: model.add(Dropout(0.1))
+    if dropout: model.add(Dropout(drop_prob))
     model.add(Dense(50, init='normal'))
+    if non_linear: model.add(Activation(non_linear))
+    if dropout: model.add(Dropout(drop_prob))
+    model.add(Dense(50, init='normal'))
+    if non_linear: model.add(Activation(non_linear))
+    if dropout: model.add(Dropout(drop_prob))
+    model.add(Dense(50, init='normal'))
+    if non_linear: model.add(Activation(non_linear))
+    if dropout: model.add(Dropout(drop_prob))
+    model.add(Dense(50, init='normal'))
+    if non_linear: model.add(Activation(non_linear))
+    if dropout: model.add(Dropout(drop_prob))
+
+    if fc:
+        model.add(Dense(50, init='normal'))
+        model.add(Dense(50, init='normal'))
+        model.add(Dense(50, init='normal'))
+        model.add(Dense(50, init='normal'))
+        model.add(Dense(50, init='normal'))
+    
     model.add(Dense(1,  init='normal'))
     # Compile model
-    model.compile(loss='mean_squared_error', optimizer='adam')
+    model.compile(loss='binary_crossentropy', optimizer='adam',
+                  metrics=['accuracy'])
     return model
 
 
@@ -78,39 +104,31 @@ def main():
     t_id = prediction_data['t_id']
     x_prediction = prediction_data.drop('t_id', axis=1)
 
-    # This is your model that will learn to predict
-    #model = linear_model.LogisticRegression(n_jobs=-1)
-    #model = neural_network.MLPRegressor()
-
     # fix random seed for reproducibility
     seed = 7
     np.random.seed(seed)
     # evaluate model with standardized dataset
-    #estimator = KerasRegressor(build_fn=baseline_model, 
-    #                   nb_epoch=100, batch_size=5, verbose=0)
     model = baseline_model()
-
 
     print("Training...")
     # Your model is trained on the numerai_training_data
     #model.fit(X, Y)
     X = X.as_matrix(); Y = Y.as_matrix()
-    model.fit(X, Y, 
-              batch_size=1000,
-              nb_epoch=10, # on subsample
-              verbose=1)
+    X_train, X_test, y_train, y_test = train_test_split(
+         X, Y, test_size=0.33, random_state=42)
+    model.fit(X_train, y_train, batch_size=100, nb_epoch=25, verbose=1)
 
-    #kfold = KFold(n_splits=10, random_state=seed)
-    #results = cross_val_score(estimator, X, Y, cv=kfold)
-    #print("Results: %.2f (%.2f) MSE" % (results.mean(), results.std()))
 
     print("Predicting...")
     # Your trained model is now used to make predictions on the numerai_tournament_data
     # The model returns two columns: [probability of 0, probability of 1]
     # We are just interested in the probability that the target is 1.
-    y_prediction = model.predict_proba(X)
-    print("Log loss on training data is: %s" % (metrics.log_loss(Y, y_prediction),))
- 
+    #y_prediction = model.predict_proba(X)
+    y_prediction = model.predict(X_train)
+    print("Log loss on training data is: %s" % (metrics.log_loss(y_train, y_prediction),))
+    y_prediction = model.predict(X_test)
+    print("Log loss on testing  data is: %s" % (metrics.log_loss(y_test, y_prediction),))  
+
     y_prediction = model.predict_proba(x_prediction.as_matrix())
     results = y_prediction[:, 0]
     results_df = pd.DataFrame(data={'probability':results})
