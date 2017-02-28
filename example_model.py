@@ -5,6 +5,7 @@ Example classifier on Numerai data using a logistic regression classifier.
 To get started, install the required packages: pip install pandas, numpy, sklearn
 """
 
+import os
 import pandas as pd
 import numpy as np
 from sklearn import (
@@ -43,10 +44,10 @@ INPUT_SHAPE = (50,)
 
 # define base mode
 def baseline_model():
-    non_linear = 'relu'
+    non_linear = 'elu'
     dropout = True
-    drop_prob = 0.1
-    fc = False
+    drop_prob = 0.10
+    fc = True
 
     # create model
     model = Sequential()
@@ -91,7 +92,14 @@ def main():
     # autosave best Model and load any previous weights
     model_file = "./model.h5"
     checkpointer = ModelCheckpoint(model_file,
-                                   verbose = 1, save_best_only = False)
+                                   verbose = 1, save_best_only = True)
+
+    model = baseline_model()
+    if os.path.isfile(model_file):
+        model.load_weights(model_file)
+    model_json = model.to_json()
+    with open("model.json", "w") as json_file:
+        json_file.write(model_json)
 
     print("Loading data...")
     # Load the data from the CSV files
@@ -107,17 +115,21 @@ def main():
     # fix random seed for reproducibility
     seed = 7
     np.random.seed(seed)
-    # evaluate model with standardized dataset
-    model = baseline_model()
 
     print("Training...")
     # Your model is trained on the numerai_training_data
-    #model.fit(X, Y)
     X = X.as_matrix(); Y = Y.as_matrix()
     X_train, X_test, y_train, y_test = train_test_split(
-         X, Y, test_size=0.33, random_state=42)
-    model.fit(X_train, y_train, batch_size=100, nb_epoch=25, verbose=1)
+         X, Y, test_size=0.20, random_state=42)
+    #X_val, X_test, y_val, y_test = train_test_split(
+    #     X_test, y_test, test_size=0.5, random_state=42)
+    model.fit(X_train, y_train, batch_size=32, nb_epoch=100, 
+              callbacks=[checkpointer], validation_split=0.20, verbose=1)
 
+    # Reload the best weights, not the most recent from above
+    model = baseline_model()
+    if os.path.isfile(model_file):
+        model.load_weights(model_file)
 
     print("Predicting...")
     # Your trained model is now used to make predictions on the numerai_tournament_data
