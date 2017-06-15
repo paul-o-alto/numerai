@@ -40,7 +40,7 @@ from keras.layers import (
 )
 
 NORMALIZE = not True
-INPUT_SHAPE = (50,)
+INPUT_SHAPE = (21,)
 
 # define base mode
 def baseline_model():
@@ -54,31 +54,31 @@ def baseline_model():
     if NORMALIZE:
         model.add(Lambda(lambda x: x/0.5 - 1,
                   input_shape=INPUT_SHAPE))
-    model.add(Dense(50, input_dim=50, init='normal'))
+    model.add(Dense(24, input_dim=INPUT_SHAPE[0], kernel_initializer='normal'))
 
     if non_linear: model.add(Activation(non_linear))
     if dropout: model.add(Dropout(drop_prob))
-    model.add(Dense(50, init='normal'))
+    model.add(Dense(24, kernel_initializer='normal'))
     if non_linear: model.add(Activation(non_linear))
     if dropout: model.add(Dropout(drop_prob))
-    model.add(Dense(50, init='normal'))
+    model.add(Dense(24, kernel_initializer='normal'))
     if non_linear: model.add(Activation(non_linear))
     if dropout: model.add(Dropout(drop_prob))
-    model.add(Dense(50, init='normal'))
+    model.add(Dense(24, kernel_initializer='normal'))
     if non_linear: model.add(Activation(non_linear))
     if dropout: model.add(Dropout(drop_prob))
-    model.add(Dense(50, init='normal'))
+    model.add(Dense(24, kernel_initializer='normal'))
     if non_linear: model.add(Activation(non_linear))
     if dropout: model.add(Dropout(drop_prob))
 
     if fc:
-        model.add(Dense(50, init='normal'))
-        model.add(Dense(50, init='normal'))
-        model.add(Dense(50, init='normal'))
-        model.add(Dense(50, init='normal'))
-        model.add(Dense(50, init='normal'))
+        model.add(Dense(24, kernel_initializer='normal'))
+        model.add(Dense(24, kernel_initializer='normal'))
+        model.add(Dense(24, kernel_initializer='normal'))
+        model.add(Dense(24, kernel_initializer='normal'))
+        model.add(Dense(24, kernel_initializer='normal'))
     
-    model.add(Dense(1,  init='normal'))
+    model.add(Dense(1,  kernel_initializer='normal'))
     # Compile model
     model.compile(loss='binary_crossentropy', optimizer='adam',
                   metrics=['accuracy'])
@@ -107,10 +107,12 @@ def main():
     prediction_data = pd.read_csv('numerai_tournament_data.csv', header=0)
 
     # Transform the loaded CSV data into numpy arrays
-    Y = training_data['target']
-    X = training_data.drop('target', axis=1)
-    t_id = prediction_data['t_id']
-    x_prediction = prediction_data.drop('t_id', axis=1)
+    features = [f for f in list(training_data) if "feature" in f]
+    X = training_data[features]
+    Y = training_data["target"]
+    x_prediction = prediction_data[features]
+    t_id = prediction_data['id']
+    
 
     # fix random seed for reproducibility
     seed = 7
